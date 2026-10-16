@@ -1,0 +1,3 @@
+component: gimbal-ctrl
+version: 1.3.0
+hw_compat: [A, B]
