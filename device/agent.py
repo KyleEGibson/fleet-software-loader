@@ -1,34 +1,17 @@
-"""Simulated embedded device: A/B firmware slots, a bootloader and a config store.
+"""Fake embedded device with A/B slots, a bootloader and a config store.
 
-Each Docker container runs one of these. It behaves like a small embedded
-target (a sensor head or gimbal controller) that receives software updates over
-the network:
+One of these runs in each container. Image parsing is written separately from
+fleetload on purpose, against docs/image_format.md. Stdlib only.
 
-* Two firmware slots, A and B. The running image is never overwritten; a new
-  image is written to the inactive slot.
-* A bootloader that verifies an image (format, SHA-256, hardware and
-  component compatibility) before booting it, and falls back to the previous
-  slot if the new image fails.
-* Trial boots: a newly booted image must be committed by the host, or the next
-  reboot reverts to the previous image (the A/B "boot counter" pattern).
-* A configuration store the host can read and write.
-
-The firmware image format is documented in docs/image_format.md and is
-implemented here independently of the host tool, the way a device and its
-loader would be built by different teams against one specification.
-
-Standard library only, so the container image stays small.
-
-Faults (env FAULTS, comma separated) for testing the loader:
+FAULTS env var (comma separated):
   CORRUPT_WRITE  flip a byte in every image written to a slot
   BOOT_FAIL      newly loaded images fail to boot
-  CONFIG_DRIFT   start with a configuration that differs from the baseline
-  SLOW           every response is delayed beyond the host's timeout
+  CONFIG_DRIFT   start with config that doesn't match the baseline
+  SLOW           delay every response past the host's timeout
 """
 
 from __future__ import annotations
 
-import argparse
 import hashlib
 import json
 import os
@@ -69,7 +52,6 @@ def parse_image(raw: bytes) -> tuple[dict, bytes]:
 
 
 def factory_image(component: str, version: str) -> bytes:
-    """The image programmed at the factory, so a fresh device has something to run."""
     payload = f"{component} factory firmware {version}\n".encode()
     header = {
         "format": FORMAT_VERSION, "component": component, "version": version, "hw_compat": ["A", "B"],
@@ -103,8 +85,6 @@ class Device:
             self.config["log_level"] = "debug"
             self.config["telemetry_rate_hz"] = self.config["telemetry_rate_hz"] // 2
 
-    # ---------------------------------------------------------------- queries
-
     def _slot_info(self, slot: str) -> dict | None:
         raw = self.slots[slot]
         if raw is None:
@@ -133,8 +113,6 @@ class Device:
                 "last_boot": self.last_boot,
                 "last_boot_error": self.last_boot_error,
             }
-
-    # --------------------------------------------------------------- commands
 
     def _require_running(self) -> None:
         if self.state != "running":
@@ -187,8 +165,6 @@ class Device:
             self.state = "booting"
         threading.Timer(self.boot_seconds, self._boot).start()
         return {"state": "booting"}
-
-    # -------------------------------------------------------------- bootloader
 
     def _verify_bootable(self, slot: str) -> None:
         header, _ = parse_image(self.slots[slot] or b"")
@@ -286,21 +262,13 @@ def make_server(device: Device, host: str = "0.0.0.0", port: int = 8080) -> Thre
 
 
 def main() -> None:
-    env = os.environ
-    parser = argparse.ArgumentParser(description="Simulated embedded device")
-    parser.add_argument("--id", default=env.get("DEVICE_ID", "dev-01"))
-    parser.add_argument("--role", default=env.get("ROLE", "sensor-head"))
-    parser.add_argument("--hw-rev", default=env.get("HW_REV", "A"))
-    parser.add_argument("--factory-version", default=env.get("FACTORY_VERSION", "1.0.0"))
-    parser.add_argument("--faults", default=env.get("FAULTS", ""))
-    parser.add_argument("--boot-seconds", type=float, default=float(env.get("BOOT_SECONDS", "1.5")))
-    parser.add_argument("--port", type=int, default=int(env.get("PORT", "8080")))
-    args = parser.parse_args()
-    faults = {f.strip().upper() for f in args.faults.split(",") if f.strip()}
-    device = Device(args.id, args.role, args.hw_rev, args.factory_version, faults, args.boot_seconds)
-    print(f"{args.id} ({args.role}, rev {args.hw_rev}) running {args.factory_version} on :{args.port}"
-          + (f" faults={sorted(faults)}" if faults else ""), flush=True)
-    make_server(device, port=args.port).serve_forever()
+    env = os.environ.get
+    faults = {f.strip().upper() for f in env("FAULTS", "").split(",") if f.strip()}
+    device = Device(env("DEVICE_ID", "dev-01"), env("ROLE", "sensor-head"), env("HW_REV", "A"),
+                    env("FACTORY_VERSION", "1.0.0"), faults, float(env("BOOT_SECONDS", "1.5")))
+    port = int(env("PORT", "8080"))
+    print(f"{device.device_id} ({device.role} rev {device.hw_rev}) on :{port} faults={sorted(faults)}", flush=True)
+    make_server(device, port=port).serve_forever()
 
 
 if __name__ == "__main__":

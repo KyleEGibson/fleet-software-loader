@@ -1,6 +1,6 @@
-# Firmware Image Format (FWI v1)
+# Firmware image format (FWI v1)
 
-The interface between the build system, the loader (`src/fleetload/image.py`) and the device bootloader (`device/agent.py`). Those two implementations are written separately, against this document.
+Shared by the loader (`src/fleetload/image.py`) and the device bootloader (`device/agent.py`). The two parsers are written separately from this spec.
 
 ## Layout
 ```
@@ -29,7 +29,7 @@ The payload is a tar archive of the component's source directory (`firmware/<com
 | Loader, after boot | Device reports the target version from the new slot and no fallback | Boot failures the device recovered from on its own |
 
 ## Reproducibility
-Builds are byte-for-byte reproducible: tar entries are sorted, with mtime 0, uid/gid 0 and no owner names, and the header is serialized with sorted keys. The same source gives the same SHA-256 on any machine (line endings are fixed by `.gitattributes`), so a manifest checksum identifies exactly one source state.
+Builds are byte-for-byte reproducible: tar entries are sorted, with mtime 0, uid/gid 0 and no owner names, and the header is serialized with sorted keys. The same source gives the same SHA-256 on any machine (line endings are fixed by `.gitattributes`), so a manifest checksum points to exactly one source state.
 
 ## Device API (management port 8080)
 | Method | Path | Body | Result |
@@ -41,4 +41,4 @@ Builds are byte-for-byte reproducible: tar entries are sorted, with mtime 0, uid
 | POST | `/commit` | | makes a trial image permanent |
 | GET/PUT | `/config` | JSON | configuration; unknown keys rejected with 400 |
 
-Boot rules: a newly activated slot boots on **trial**. If the bootloader rejects it, the device stays on the current slot (`last_boot: fallback`). A trial image that is not committed before the next reboot is reverted (`last_boot: reverted`).
+Boot rules: a newly activated slot boots on trial. If the bootloader rejects it, the device stays on the current slot (`last_boot: fallback`). A trial image that is not committed before the next reboot is reverted (`last_boot: reverted`).

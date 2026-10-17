@@ -1,15 +1,7 @@
-"""Firmware image format and reproducible release builds.
+"""Firmware image format (see docs/image_format.md) and release builds.
 
-An image is a one-line JSON header, a separator and the payload:
-
-    {"component": "sensor-head", "format": 1, "hw_compat": ["A", "B"],
-     "payload_sha256": "...", "payload_size": 10240, "version": "2.4.2"}
-    ---
-    <payload bytes: a tar archive of the component's files>
-
-See docs/image_format.md. Builds are reproducible: the payload tar uses fixed
-timestamps, owners and ordering, so the same source always produces the same
-SHA-256. That is what lets a release manifest be trusted.
+The payload tar has fixed timestamps/owners/order so the same source always
+gives the same SHA-256.
 """
 
 from __future__ import annotations
@@ -110,9 +102,6 @@ def build_from_source(source: str | Path, version: str | None = None) -> Image:
     source = Path(source)
     spec = yaml.safe_load((source / "firmware.yaml").read_text(encoding="utf-8"))
     return build(spec["component"], version or str(spec["version"]), _deterministic_tar(source), spec["hw_compat"])
-
-
-# ------------------------------------------------------------------ releases
 
 
 def manifest_path(release_dir: str | Path) -> Path:

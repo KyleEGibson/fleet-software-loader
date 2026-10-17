@@ -65,7 +65,7 @@ class DeviceClient:
         return self._request("POST", "/commit", b"")
 
     def wait_running(self, timeout: float, poll: float = 0.2) -> dict:
-        """Poll until the device answers and reports 'running'; tolerate it being unreachable while booting."""
+        # the device is unreachable while it boots, so keep polling through errors
         deadline = time.monotonic() + timeout
         last_error = "no response"
         while time.monotonic() < deadline:
