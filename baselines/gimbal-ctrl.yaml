@@ -1,0 +1,5 @@
+# Configuration baseline for every gimbal controller (controlled document).
+telemetry_rate_hz: 100
+max_slew_dps: 60.0
+stow_on_fault: true
+log_level: info

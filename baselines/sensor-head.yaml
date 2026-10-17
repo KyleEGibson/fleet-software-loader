@@ -1,0 +1,5 @@
+# Configuration baseline for every sensor head (controlled document).
+telemetry_rate_hz: 50
+detector_gain: 4
+cooler_setpoint_c: -40.0
+log_level: info
