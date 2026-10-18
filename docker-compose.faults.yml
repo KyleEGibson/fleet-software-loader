@@ -1,0 +1,8 @@
+# docker compose -f docker-compose.yml -f docker-compose.faults.yml up -d
+services:
+  sh-03:
+    environment: { DEVICE_ID: sh-03, ROLE: sensor-head, HW_REV: "B", FACTORY_VERSION: "1.0.0", BOOT_SECONDS: "1.5", FAULTS: BOOT_FAIL }
+  sh-04:
+    environment: { DEVICE_ID: sh-04, ROLE: sensor-head, HW_REV: "B", FACTORY_VERSION: "1.0.0", BOOT_SECONDS: "1.5", FAULTS: CORRUPT_WRITE }
+  gc-02:
+    environment: { DEVICE_ID: gc-02, ROLE: gimbal-ctrl, HW_REV: "B", FACTORY_VERSION: "1.0.0", BOOT_SECONDS: "1.5", FAULTS: CONFIG_DRIFT }
